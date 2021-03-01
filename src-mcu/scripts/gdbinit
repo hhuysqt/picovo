@@ -1,0 +1,6 @@
+target remote :3333
+
+define ldnew
+	file ../../build-mcu/picovo_cm7
+	load
+end

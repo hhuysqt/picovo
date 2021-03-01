@@ -1,0 +1,65 @@
+%YAML:1.0
+
+# Full path to the datasets
+dataset_folders: [ 
+# edge.threshold = 8
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_floor/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_360/,
+  /home/hyq/projects/slam/dataset/tum-rgbd/rgbd_dataset_freiburg1_desk/
+  # /home/hyq/projects/slam/dataset/tum-rgbd/rgbd_dataset_freiburg2_desk/
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_desk2/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_plant/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_room/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_rpy/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_xyz/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_coke/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_dishes/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_rpy/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_desk/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_xyz/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_long_office_household/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_cabinet/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_large_cabinet/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_nostructure_texture_near_withloop/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_structure_texture_near/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_structure_texture_far/
+# edge.threshold = 5
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_structure_notexture_far/,
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_nostructure_texture_far/
+# edge.threshold = 2
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg3_structure_notexture_near/
+  ]
+
+# width: 640
+# height: 480
+width: 320
+height: 240
+
+# Camera intrinsics
+# fx: 516.8878115
+# fy: 516.8878115
+# cx: 318.643040
+# cy: 255.313989
+fx: 258.44390575
+fy: 258.44390575
+cx: 159.32152
+cy: 127.6569945
+
+# edge: gradient threshold
+edge.threshold: 8
+
+# feature: depth threshold
+feature.depth.min: 625
+feature.depth.max: 55000
+
+# Choose a tracker. See enum tracker_enum in picovo_config.h
+tracker.type: 1
+
+# Choose an optimization solver. See enum solver_enum in picovo_config.h
+solver.type: 8
+solver.huber_weight: 0.3
+solver.outlier_threshold: 14
+
+tracker.is_pause: 0
+tracker.use_canny: 0
+tracker.show_imgs: 1
