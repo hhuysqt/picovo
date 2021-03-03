@@ -170,7 +170,7 @@ public:
    * @brief Get statistics of the previous tracking phace
    * @param stat statistic struct
    */
-  void get_statistics(struct ovo_stat &stat)
+  void get_statistics(struct picovo_stat &stat)
   {
     stat.nr_iterations = stat_iterations;
     stat.residual = stat_residual;

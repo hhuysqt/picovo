@@ -449,7 +449,7 @@ void tracker_rgbd::start(picovo_config &config)
 
       solver->reset();
       double nr_frames = 0;
-      struct ovo_stat summary_stat = { 0 };
+      struct picovo_stat summary_stat = { 0 };
 
       while (!assoc_file.eof()) {
         std::string rgbid, rgbfile, depthid, depthfile;
@@ -485,7 +485,7 @@ void tracker_rgbd::start(picovo_config &config)
         std::chrono::duration<double> track_us = end_time2 - start_track_time;
 
         // output statistics
-        struct ovo_stat stat;
+        struct picovo_stat stat;
         solver->get_statistics(stat);
         stat.nr_features = curr_frame->nr_pcld;
         stat.pre_process_us = pre_process_us.count();

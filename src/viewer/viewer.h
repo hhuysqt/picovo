@@ -18,8 +18,8 @@
  * along with PicoVO. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OVO_VIEWER_H
-#define OVO_VIEWER_H
+#ifndef PICOVO_VIEWER_H
+#define PICOVO_VIEWER_H
 
 #include <Eigen/Core>
 #include <pangolin/pangolin.h>

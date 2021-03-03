@@ -170,14 +170,14 @@ struct picovo_config
   ~picovo_config() {}
 };
 
-struct ovo_stat {
+struct picovo_stat {
   double pre_process_us;
   double track_us;
   double residual;
   int nr_features;
   int nr_iterations;
 
-  ovo_stat& operator += (const ovo_stat &b) {
+  picovo_stat& operator += (const picovo_stat &b) {
     this->pre_process_us += b.pre_process_us;
     this->track_us += b.track_us;
     this->residual += b.residual;

@@ -155,7 +155,7 @@ The telnet console outputs as follows:
     Single Bank 2048 kiB STM32F76x/77x found
     target halted due to breakpoint, current mode: Thread
     xPSR: 0x61000000 pc: 0x20000046 msp: 0x20080000
-    wrote 524288 bytes from file build-mcu/ovo_cm7.bin in 10.658219s (48.038 KiB/s)
+    wrote 524288 bytes from file build-mcu/picovo_cm7.bin in 10.658219s (48.038 KiB/s)
     > 
 
 Finally, reset and run by pressing the reset button on the board, or type `reset run` command in the telnet console. You may kill both terminals as long as you finish the download.
