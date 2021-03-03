@@ -99,6 +99,8 @@ void viewer::show_curr_frame(std::shared_ptr<frame> current_frame)
     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 2);
   cv::putText(bar_mat, tmpbuf, cv::Point(5,60),
     cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 2);
+
+  traj_estimate.push_back(curr_frame->pose);
 }
 
 void viewer::add_key_frame(std::shared_ptr<frame> kf)
@@ -164,9 +166,16 @@ void viewer::clear_all(void)
   // for (auto kf : active_keyframes_) {
   //   glDeleteBuffers(1, &kf->vbo);
   // }
+  traj_estimate.clear();
+  traj_groundtruth.clear();
   active_keyframes_.clear();
   curr_frame = nullptr;
   animation_lock.unlock();
+}
+
+void viewer::show_groundtruth(std::vector<Eigen::Matrix4f> &traj_gt)
+{
+  traj_groundtruth = traj_gt;
 }
 
 void viewer::viewer_loop()
@@ -213,6 +222,10 @@ void viewer::viewer_loop()
     if (curr_frame) {
       std::unique_lock<std::mutex> lock(current_lock);
       draw_camera(curr_frame, green);
+      float color[3] = {0, 1.0, 0};
+      draw_trajectory(traj_estimate, color);
+      color[1] = 0, color[2] = 1.0;
+      draw_trajectory(traj_groundtruth, color);
       if (!is_start_animation)
         follow_current_frame(vis_camera);
     }
@@ -332,10 +345,10 @@ void viewer::draw_pcld()
 {
   std::unique_lock<std::mutex> lock(kf_lock);
 
-  for (auto& kf : active_keyframes_) {
-    float color[3] = { 0, 0, 1 };
-    draw_camera(kf, color);
-  }
+  // for (auto& kf : active_keyframes_) {
+  //   float color[3] = { 0, 0, 1 };
+  //   draw_camera(kf, color);
+  // }
 
   glPointSize(1.5);
   glBegin(GL_POINTS);
@@ -379,4 +392,22 @@ void viewer::draw_pcld()
     // glPopMatrix();
   }
   glEnd();
+}
+
+void viewer::draw_trajectory(std::vector<Eigen::Matrix4f> &traj, float color[3])
+{
+  if (traj.size() == 0) {
+    return;
+  }
+
+  glPushMatrix();
+  glMultMatrixf((GLfloat*)traj[0].data());
+  glColor3f(color[0], color[1], color[2]);
+  glLineWidth(1.5);
+  glBegin(GL_LINE_STRIP);
+  for (auto traj : traj) {
+    glVertex3f(traj(0,3), traj(1,3), traj(2,3));
+  }
+  glEnd();
+  glPopMatrix();
 }

@@ -100,6 +100,7 @@ protected:
   bool is_use_canny;
   bool is_show_imgs;
   bool is_view_animation;
+  bool is_view_groundtruth;
   float nr_feat_thre;           // threshold of number of features
   int edge_threshold;           // edge: gradient threshold
   int depth_min, depth_max;     // feature: depth threshold

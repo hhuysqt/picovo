@@ -33,6 +33,7 @@
 
 #include <libgen.h>
 #include <string.h>
+#include <unistd.h>
 
 using namespace picovo;
 
@@ -60,6 +61,7 @@ void tracker_rgbd::_initialize(picovo_config &config)
     std::cout << "show images" << std::endl;
   }
   is_view_animation = config.is_view_animation;
+  is_view_groundtruth = config.is_view_groundtruth;
 
   switch (config.tracker_type) {
     case TRACKER_RGBD_DATASET: {
@@ -544,6 +546,39 @@ void tracker_rgbd::start(picovo_config &config)
 #ifdef USE_PANGOLIN
       if (is_view_animation) {
         my_viewer->play_animation();
+      }
+      if (is_view_groundtruth) {
+        std::string g_f = dataset_dir + "groundtruth.txt";
+        std::ifstream gt_file(g_f);
+        if (gt_file) {
+          // skip the first 3 line of comments
+          char tmpbuf[2];
+          for (int i = 0; i < 3;) {
+            gt_file.read(tmpbuf, 1);
+            if (tmpbuf[0] == '\n') {
+              i++;
+            }
+          }
+          std::vector<Eigen::Matrix4f> traj_gt;
+          traj_gt.push_back(Eigen::Matrix4f::Identity());
+          std::string timestamp;
+          Eigen::Vector3f Tt;
+          Eigen::Quaternionf Qt;
+          gt_file >> timestamp >> Tt(0) >> Tt(1) >> Tt(2) 
+                  >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
+          Eigen::Matrix3f Rt = Qt.toRotationMatrix();
+          Eigen::Matrix4f orig_mat = makeup_matrix4f(Rt, Tt);
+          Eigen::Matrix4f inv_ori_mat = orig_mat.inverse();
+          while (!gt_file.eof()) {
+            gt_file >> timestamp >> Tt(0) >> Tt(1) >> Tt(2) 
+                    >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
+            Rt = Qt.toRotationMatrix();
+            Eigen::Matrix4f curr_mat = makeup_matrix4f(Rt, Tt);
+            traj_gt.push_back(inv_ori_mat * curr_mat);
+          }
+          my_viewer->show_groundtruth(traj_gt);
+        }
+        sleep(5);
       }
 #endif
     }

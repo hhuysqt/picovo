@@ -46,6 +46,7 @@ public:
   void add_key_frame(std::shared_ptr<frame> key_frame);
   void play_animation(void);
   void clear_all(void);
+  void show_groundtruth(std::vector<Eigen::Matrix4f> &traj_gt);
 
 private:
 
@@ -70,6 +71,14 @@ private:
   void draw_pcld();
 
   /**
+   * @fn draw_trajectory
+   * @brief draw trajectory of camera
+   * @param traj a list of trajectory
+   * @param color GLfloat RGB color
+   */
+  void draw_trajectory(std::vector<Eigen::Matrix4f> &traj, float color[3]);
+
+  /**
    * @fn follow_current_frame
    * @brief set the OpenGL view to follow current frame
    * @param vis_camera Pangolin OpenGL camera
@@ -90,6 +99,10 @@ private:
 
   // current frame
   std::shared_ptr<frame> curr_frame = nullptr;
+
+  // a list of trajectory
+  std::vector<Eigen::Matrix4f> traj_estimate;
+  std::vector<Eigen::Matrix4f> traj_groundtruth;
 
   // a list of active keyframes
   std::vector<std::shared_ptr<struct frame> > active_keyframes_;

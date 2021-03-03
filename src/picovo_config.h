@@ -83,6 +83,7 @@ struct picovo_config
   bool is_view_animation;
   bool is_view_fullscreen;
   bool is_view_show_imgs;
+  bool is_view_groundtruth;
   int viewer_height, viewer_width;
 
   /**
@@ -151,6 +152,7 @@ struct picovo_config
     cv::read(configfile["viewer.do_animation"], is_view_animation, false);
     cv::read(configfile["viewer.full_screen"], is_view_fullscreen, false);
     cv::read(configfile["viewer.show_imgs"], is_view_show_imgs, false);
+    cv::read(configfile["viewer.groundtruth"], is_view_groundtruth, false);
     cv::read(configfile["viewer.width"], viewer_width, 1024);
     cv::read(configfile["viewer.height"], viewer_height, 768);
     dataset_folder.clear();
