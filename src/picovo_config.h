@@ -84,6 +84,9 @@ struct picovo_config
   bool is_view_fullscreen;
   bool is_view_show_imgs;
   bool is_view_groundtruth;
+  bool is_capture_video;
+  std::string capture_video_name;
+  int capture_framerate;
   int viewer_height, viewer_width;
 
   /**
@@ -155,6 +158,11 @@ struct picovo_config
     cv::read(configfile["viewer.groundtruth"], is_view_groundtruth, false);
     cv::read(configfile["viewer.width"], viewer_width, 1024);
     cv::read(configfile["viewer.height"], viewer_height, 768);
+    cv::read(configfile["viewer.capture_video"], is_capture_video, false);
+    if (is_capture_video) {
+      cv::read(configfile["viewer.capture_name"], capture_video_name, "out.mp4");
+      cv::read(configfile["viewer.capture_framerate"], capture_framerate, 30);
+    }
     dataset_folder.clear();
     cv::FileNode fn = configfile["dataset_folders"];
     if (fn.type() != cv::FileNode::SEQ) {

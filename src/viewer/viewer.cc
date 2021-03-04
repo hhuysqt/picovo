@@ -26,6 +26,7 @@ using namespace picovo;
 
 viewer::viewer(picovo_config &config)
 {
+  is_running = true;
   fx = config.fx;
   fy = config.fy;
   cx = config.cx;
@@ -35,6 +36,12 @@ viewer::viewer(picovo_config &config)
   is_show_img = config.is_view_show_imgs;
   is_fullscreen = config.is_view_fullscreen;
   viewer_thread_ = std::thread(std::bind(&viewer::viewer_loop, this));
+  is_capture_video = config.is_capture_video;
+  if (is_capture_video) {
+    capture_name = config.capture_video_name;
+    capture_fps = config.capture_framerate;
+    capture_thread_ = std::thread(std::bind(&viewer::capture_loop, this));
+  }
   is_curr_frame_updated = false;
   is_keyframe_updated = false;
   is_start_animation = false;
@@ -66,17 +73,23 @@ viewer::viewer(picovo_config &config)
     solver_name += ", PicoEdge";
   }
   char tmpbuf[100];
-  snprintf(tmpbuf, sizeof(tmpbuf), ", %dx%d", config.width, config.height);
+  snprintf(tmpbuf, sizeof(tmpbuf), ", %dx%d        on Desktop PC", 
+    config.width, config.height);
   solver_name += tmpbuf;
+
+  capture_img.create(cv::Size(win_width, win_height), CV_8UC3);
 }
 
 void viewer::close()
 {
   std::unique_lock<std::mutex> lck(running_lock);
   viewer_thread_.join();
+  if (is_capture_video) {
+    capture_thread_.join();
+  }
 }
 
-void viewer::show_curr_frame(std::shared_ptr<frame> current_frame)
+void viewer::update_curr_frame(std::shared_ptr<frame> current_frame)
 {
   std::unique_lock<std::mutex> lck(current_lock);
   if (curr_frame == nullptr) {
@@ -147,6 +160,12 @@ void viewer::add_key_frame(std::shared_ptr<frame> kf)
   is_keyframe_updated = true;
 }
 
+void viewer::add_groundtruth(Eigen::Matrix4f gt_pose)
+{
+  std::unique_lock<std::mutex> lck(current_lock);
+  traj_groundtruth.push_back(gt_pose);
+}
+
 void viewer::play_animation(void)
 {
   // trigger animation
@@ -171,11 +190,6 @@ void viewer::clear_all(void)
   active_keyframes_.clear();
   curr_frame = nullptr;
   animation_lock.unlock();
-}
-
-void viewer::show_groundtruth(std::vector<Eigen::Matrix4f> &traj_gt)
-{
-  traj_groundtruth = traj_gt;
 }
 
 void viewer::viewer_loop()
@@ -222,9 +236,9 @@ void viewer::viewer_loop()
     if (curr_frame) {
       std::unique_lock<std::mutex> lock(current_lock);
       draw_camera(curr_frame, green);
-      float color[3] = {0, 1.0, 0};
+      float color[3] = {0.2, 1.0, 0.2};
       draw_trajectory(traj_estimate, color);
-      color[1] = 0, color[2] = 1.0;
+      color[1] = 0.2, color[0] = 1.0;
       draw_trajectory(traj_groundtruth, color);
       if (!is_start_animation)
         follow_current_frame(vis_camera);
@@ -268,11 +282,41 @@ void viewer::viewer_loop()
     }
 
     pangolin::FinishFrame();
+
+    // capture pictures
+    {
+      cv::Mat tmp(capture_img.size(), CV_8UC3);
+      glReadPixels(0, 0, win_width, win_height, GL_BGR, GL_UNSIGNED_BYTE, tmp.ptr());
+      cv::flip(tmp, tmp, 0);
+      tmp.copyTo(capture_img);
+    }
+
     usleep(10000);
   }
   pangolin::QuitAll();
 
   // std::cout << "Stop viewer" << std::endl;
+  is_running = false;
+}
+
+void viewer::capture_loop()
+{
+  std::cout << "Saving video to " << capture_name << "." << std::endl;
+
+  cv::VideoWriter video_out;
+  video_out.open(capture_name, cv::VideoWriter::fourcc('a','v','c','1'), 
+    capture_fps, cv::Size(win_width, win_height), true);
+  if (!video_out.isOpened()) {
+    std::cerr << "Failed to open video output..." << std::endl;
+    return;
+  }
+  usleep(100000);
+  while (is_running) {
+    // cv::imshow("capture", capture_img);
+    video_out.write(capture_img);
+    usleep(1000000/capture_fps);
+  }
+  std::cout << "catpure end" << std::endl;
 }
 
 void viewer::follow_current_frame(pangolin::OpenGlRenderState& vis_camera)
@@ -403,7 +447,7 @@ void viewer::draw_trajectory(std::vector<Eigen::Matrix4f> &traj, float color[3])
   glPushMatrix();
   glMultMatrixf((GLfloat*)traj[0].data());
   glColor3f(color[0], color[1], color[2]);
-  glLineWidth(1.5);
+  glLineWidth(3);
   glBegin(GL_LINE_STRIP);
   for (auto traj : traj) {
     glVertex3f(traj(0,3), traj(1,3), traj(2,3));

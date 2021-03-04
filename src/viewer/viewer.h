@@ -42,11 +42,11 @@ public:
 
   void close();
 
-  void show_curr_frame(std::shared_ptr<frame> current_frame);
+  void update_curr_frame(std::shared_ptr<frame> current_frame);
   void add_key_frame(std::shared_ptr<frame> key_frame);
+  void add_groundtruth(Eigen::Matrix4f gt_pose);
   void play_animation(void);
   void clear_all(void);
-  void show_groundtruth(std::vector<Eigen::Matrix4f> &traj_gt);
 
 private:
 
@@ -55,6 +55,12 @@ private:
    * @brief viewer thread
    */
   void viewer_loop();
+
+  /**
+   * @fn capture_loop
+   * @brief Thread for video capture
+   */
+  void capture_loop();
 
   /**
    * @fn draw_camera
@@ -94,8 +100,10 @@ private:
   void go_smoothly_to_pose(Eigen::Matrix4f pose, pangolin::OpenGlRenderState& vis_camera);
 
   std::thread viewer_thread_;
+  std::thread capture_thread_;
 
   bool is_curr_frame_updated, is_keyframe_updated;
+  bool is_running;
 
   // current frame
   std::shared_ptr<frame> curr_frame = nullptr;
@@ -122,6 +130,12 @@ private:
   cv::Mat cur_rgb;
   cv::Mat bar_mat;
   std::string solver_name;
+
+  // video capture
+  bool is_capture_video;
+  cv::Mat capture_img;
+  std::string capture_name;
+  int capture_fps;
 
   // for animation
   Eigen::Matrix4f view_pose;

@@ -3,15 +3,14 @@
 # Full path to the datasets
 dataset_folders: [ 
 # edge.threshold = 8
+  /home/hyq/projects/slam/dataset/tum-rgbd/rgbd_dataset_freiburg1_xyz/
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_floor/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_360/,
-  /home/hyq/projects/slam/dataset/tum-rgbd/rgbd_dataset_freiburg1_desk/
-  # /home/hyq/projects/slam/dataset/tum-rgbd/rgbd_dataset_freiburg2_desk/
+  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_desk/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_desk2/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_plant/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_room/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_rpy/,
-  # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg1_xyz/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_coke/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_dishes/,
   # /mnt/projects/slam/dataset/tum/rgbd_dataset_freiburg2_rpy/,
@@ -62,4 +61,9 @@ solver.outlier_threshold: 14
 
 tracker.is_pause: 0
 tracker.use_canny: 0
-tracker.show_imgs: 1
+tracker.show_imgs: 0
+
+viewer.groundtruth: 1
+# viewer.capture_video: 1
+# viewer.capture_name: output.mp4
+# viewer.capture_framerate: 30

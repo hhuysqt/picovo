@@ -84,6 +84,20 @@ protected:
   }
 
   /**
+   * @fn makeup_matrix4f
+   * @brief Return the 4x4 translation matrix of R & T.
+   * @param Q Quaternion
+   * @param T Translation matrix
+   */
+  Eigen::Matrix4f makeup_matrix4f(Eigen::Quaternionf &Q, Eigen::Vector3f &T)
+  {
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+    transform.block<3,3>(0,0) = Q.toRotationMatrix();
+    transform.block<3,1>(0,3) = T;
+    return transform;
+  }
+
+  /**
    * @fn extract_R_T
    * @brief Extract rotation and translation matrix from 4x4 pose matrix
    * @param pose 4x4 pose matrix

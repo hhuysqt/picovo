@@ -442,6 +442,34 @@ void tracker_rgbd::start(picovo_config &config)
         exit(-1);
       }
 
+      // plot groundtruth trajectory
+      double last_gt_time, next_gt_time;
+      Eigen::Matrix4f last_gt_pose, next_gt_pose;
+      Eigen::Matrix4f inv_ori_gt_pose;
+      Eigen::Vector3f Tt;
+      Eigen::Quaternionf Qt;
+      std::string g_f = dataset_dir + "groundtruth.txt";
+      std::ifstream gt_file(g_f);
+      if (!gt_file) {
+        is_view_groundtruth = false;
+      } else if (is_view_groundtruth) {
+        // skip the first 3 lines of comment
+        char tmpbuf[2];
+        for (int i = 0; i < 3;) {
+          gt_file.read(tmpbuf, 1);
+          if (tmpbuf[0] == '\n') {
+            i++;
+          }
+        }
+        // initialize timestamps and poses
+        gt_file >> last_gt_time >> Tt(0) >> Tt(1) >> Tt(2) 
+                >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
+        last_gt_pose = makeup_matrix4f(Qt, Tt);
+        gt_file >> next_gt_time >> Tt(0) >> Tt(1) >> Tt(2) 
+                >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
+        next_gt_pose = makeup_matrix4f(Qt, Tt);
+      }
+
       bool is_first = true;
       double starttime = 0;
       curr_state = TRACK_IDLE;
@@ -460,6 +488,29 @@ void tracker_rgbd::start(picovo_config &config)
           continue;
         }
         double curtime = std::stod(rgbid);
+
+#ifdef USE_PANGOLIN
+        if (is_view_groundtruth && !gt_file.eof()) {
+          while (!gt_file.eof() && next_gt_time < curtime) {
+            last_gt_pose = next_gt_pose;
+            last_gt_time = next_gt_time;
+            gt_file >> next_gt_time >> Tt(0) >> Tt(1) >> Tt(2) 
+                    >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
+            next_gt_pose = makeup_matrix4f(Qt, Tt);
+          }
+          if (last_gt_time < curtime) {
+            // Hereby last_gt_time < curtime <= next_gt_time
+            if (is_first) {
+              // a rough alignment to our estimator...
+              inv_ori_gt_pose = last_gt_pose.inverse();
+              my_viewer->add_groundtruth(Eigen::Matrix4f::Identity());
+            } else {
+              my_viewer->add_groundtruth(inv_ori_gt_pose * last_gt_pose);
+            }
+          }
+        }
+#endif
+
         if (is_first) {
           starttime = curtime;
           is_first = false;
@@ -499,7 +550,7 @@ void tracker_rgbd::start(picovo_config &config)
         curr_frame->track_time = stat.pre_process_us + stat.track_us;
         curr_frame->time_elapsed = curtime - starttime;
 #ifdef USE_PANGOLIN
-        my_viewer->show_curr_frame(curr_frame);
+        my_viewer->update_curr_frame(curr_frame);
 #endif
 
         // output pose results
@@ -547,48 +598,15 @@ void tracker_rgbd::start(picovo_config &config)
       if (is_view_animation) {
         my_viewer->play_animation();
       }
-      if (is_view_groundtruth) {
-        std::string g_f = dataset_dir + "groundtruth.txt";
-        std::ifstream gt_file(g_f);
-        if (gt_file) {
-          // skip the first 3 line of comments
-          char tmpbuf[2];
-          for (int i = 0; i < 3;) {
-            gt_file.read(tmpbuf, 1);
-            if (tmpbuf[0] == '\n') {
-              i++;
-            }
-          }
-          std::vector<Eigen::Matrix4f> traj_gt;
-          traj_gt.push_back(Eigen::Matrix4f::Identity());
-          std::string timestamp;
-          Eigen::Vector3f Tt;
-          Eigen::Quaternionf Qt;
-          gt_file >> timestamp >> Tt(0) >> Tt(1) >> Tt(2) 
-                  >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
-          Eigen::Matrix3f Rt = Qt.toRotationMatrix();
-          Eigen::Matrix4f orig_mat = makeup_matrix4f(Rt, Tt);
-          Eigen::Matrix4f inv_ori_mat = orig_mat.inverse();
-          while (!gt_file.eof()) {
-            gt_file >> timestamp >> Tt(0) >> Tt(1) >> Tt(2) 
-                    >> Qt.x() >> Qt.y() >> Qt.z() >> Qt.w();
-            Rt = Qt.toRotationMatrix();
-            Eigen::Matrix4f curr_mat = makeup_matrix4f(Rt, Tt);
-            traj_gt.push_back(inv_ori_mat * curr_mat);
-          }
-          my_viewer->show_groundtruth(traj_gt);
-        }
-        sleep(5);
-      }
 #endif
     }
   } else {
     // TODO: input with physical RGBD camera
   }
-  cv::destroyAllWindows();
 #ifdef USE_PANGOLIN
   my_viewer->close();
 #endif
+  cv::destroyAllWindows();
 }
 
 void tracker_rgbd::_track_curr_frame(void)
