@@ -31,13 +31,15 @@ PC port:
 
 STM32F767 port:
 - cmake
-- GNU toolchain: download from [ARM developer](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads). Tested `gcc-arm-none-eabi-9-2020-q2-update`
+- GNU toolchain: download from [ARM developer](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads). Tested `gcc-arm-none-eabi-6-2017-q2-update`
 - openocd
 - Eigen3 (since it is a header-only library)
 
 > You may need to update udev rules to access stlink & /dev/ttyACMx without root priviledge.
 
 > The Sophus library is integrated in this repository.
+
+> We find that the newer arm-none-eabi-gcc has a better optimization. For instance, the average processing time using v9.3.1 is around 3ms shorter than that using v6.3.1.
 
 Datasets:
 - RGB-D: download from [TUM dataset](https://vision.in.tum.de/data/datasets/rgbd-dataset/download)
@@ -180,6 +182,22 @@ The MCU writes results to the SD card:
 
 These files are not flushed during processing. So be patient while the MCU is still running...
 
+Please refer to [get_stat_str()](src-mcu/picovo-mcu/tracker_rgbd.cc#L241) for the columns of the stat file. To parse the stat file on PC, we use `awk` with the script [src-mcu/scripts/parse_mcu_stat.awk](src-mcu/scripts/parse_mcu_stat.awk):
+
+    awk -f /....../src-mcu/scripts/parse_mcu_stat.awk stat-fr2_desk.csv 
+    read    PEdge   3D feat track   post    total   nr feat iters   KF pct
+    59740   6571    910     17799   934     26216   4944    7       0.04459
+
+To parse a batch of csv files, we may use the `for` loop, and then calculate the average timing and other statistics:
+
+``` sh
+for statfiles in `ls *.csv`
+ do awk -f /....../src-mcu/scripts/parse_mcu_stat.awk $statfiles | tail -n 1
+done > summary.txt
+awk 'BEGIN{a1=0; a2=0; a3=0; a4=0; a5=0; a6=0; a7=0; a8=0}{a1+=$2; a2+=$3; a3+=$4; a4+=$5; a5+=$6; a6+=$7; a7+=$8; a8+=$9}END{printf "%d %d %d %d %d %d %.3f %.5f\n", a1/NR, a2/NR, a3/NR, a4/NR, a5/NR, a6/NR, a7/NR, a8/NR}' summary.txt
+(base)
+```
+
 The processing speed may be slow due to file read and write. In my experience the SDIO CLK@12MHz would take around 95ms to read 230KB (or 2.4MB/s), **and this throttles the overall tracking speed to around 6.5fps!** Nevertheless, the "real" tracking time measured in the statistic file covers both image preprocessing and tracking, and we deliberately add compiler barriers to avoid being optimized out:
 
 ``` c
@@ -223,7 +241,7 @@ Hints:
 - You might be reading dataset from a slow HD drive or USB drive. Track it a second time immediately after the first try (so that the previous files are cached in system RAM). Alternatively you may upgrade to an SSD drive, or copy the dataset to `/tmp/` folder for fast tmpfs IO.
 
 3. Why do the tracking results to the same dataset vary in different execution?
-- On PC, the calculation order of floating-point operations may not be identical in different compilation and execution. In my experience, even if I only delete some lines of comment in my source, the tracking result varies after recompiling. The MCU doesn't seem to have such issue.
+- On PC, the calculation order of floating-point operations may not be identical in different compilation and execution. In my experience, even if I only delete some lines of comment in my source, the tracking result varies after recompiling.
 
 4. Are there any "real world" applications of PicoVO?
 - Not yet. PicoVO is still a preliminary work. :joy: We welcome for collaborators. Please email us over {heyuquan20b, wangying2009, liucheng, zlei} at ict dot ac dot cn.
