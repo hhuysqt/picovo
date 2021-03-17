@@ -43,6 +43,15 @@ struct feature_s
 };
 
 /**
+ * @struct coo_3d
+ * @brief 3D float coordinate
+ */
+struct coo_3d
+{
+  float x, y, z;
+};
+
+/**
  * @fn init_solver
  * @brief Initialize solver internal LUTs.
  */

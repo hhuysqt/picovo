@@ -50,6 +50,7 @@ float stat_resdl;
 bool stat_is_new_kf;
 int stat_ed_time;
 int stat_feat_time;
+int stat_others_time;
 
 extern TIM_HandleTypeDef htim2;
 
@@ -123,10 +124,14 @@ void track_frame_rgbd(uint8_t *gray, uint16_t *depth)
     is_first_frame = false;
   } else {
     // select feature points
+#ifdef USE_COMPRESSED_FEATURE
     struct feature_s *pfeat = (struct feature_s*)(gray + IMG_WIDTH*IMG_HEIGHT/8);
     const double invfx = 1.0 / CAM_FX, invfy = 1.0 / CAM_FY;
     const int32_t invfx_i = invfx * 0x10000, invfy_i = invfy * 0x10000;
     const int32_t cx_i = CAM_CX * 0x1000, cy_i = CAM_CY * 0x1000;
+#else
+    struct coo_3d *pfeat = (struct coo_3d*)(gray + IMG_WIDTH*IMG_HEIGHT/8);
+#endif
     int nr_chosen = 0;
     // start from line 1
     uint32_t *pedge = (uint32_t*)(gray + IMG_WIDTH/8);
@@ -140,9 +145,16 @@ void track_frame_rgbd(uint8_t *gray, uint16_t *depth)
           int cur_x = x + offset;
           uint16_t depth = drow[cur_x];
           if (depth > DEPTH_MIN && depth < DEPTH_MAX) {
+#ifdef USE_COMPRESSED_FEATURE
             pfeat[nr_chosen].u_cx_fx = (((cur_x << 12) - cx_i) * invfx_i) >> 16;  // Q4.12
             pfeat[nr_chosen].v_cy_fy = (((y << 12) - cy_i) * invfy_i) >> 16;  // Q4.12
             pfeat[nr_chosen].zinv = (5000 << 12) / depth;  // Q4.12
+#else
+            float z = depth / 5000.0;
+            pfeat[nr_chosen].x = (cur_x - CAM_CX) * z / CAM_FX;
+            pfeat[nr_chosen].y = (y - CAM_CY) * z / CAM_FY;
+            pfeat[nr_chosen].z = z;
+#endif
             nr_chosen++;
           }
         }
@@ -159,8 +171,11 @@ void track_frame_rgbd(uint8_t *gray, uint16_t *depth)
     extract_R_T(new_pose_vs_keyframe, new_R2kf, new_T2kf);
 
     int nr_tracked = nr_chosen;
-    float err = solver_track_frame(dt_buf, pfeat, nr_tracked, new_R2kf, new_T2kf);
+    float err = solver_track_frame(dt_buf, (feature_s*)pfeat, nr_tracked, new_R2kf, new_T2kf);
     stat_it1 = stat_iterations;
+
+    int retrack_tim = 0;
+    start_tim = htim2.Instance->CNT;
 
     Sophus::SE3f delta(makeup_matrix4f(new_R2kf, new_T2kf));
     float se3norm = delta.log().norm();
@@ -177,9 +192,12 @@ void track_frame_rgbd(uint8_t *gray, uint16_t *depth)
       extract_R_T(new_pose_vs_keyframe, new_R2kf, new_T2kf);
 
       // retrack this frame
+      int retrack_start_tim = htim2.Instance->CNT;
       nr_tracked = nr_chosen;
-      err = solver_track_frame(dt_buf, pfeat, nr_tracked, new_R2kf, new_T2kf);
+      err = solver_track_frame(dt_buf, (feature_s*)pfeat, nr_tracked, new_R2kf, new_T2kf);
       stat_it2 = stat_iterations;
+      int retrack_end_tim = htim2.Instance->CNT;
+      retrack_tim = retrack_end_tim - retrack_start_tim;
     } else {
       stat_it2 = 0;
     }
@@ -205,6 +223,9 @@ void track_frame_rgbd(uint8_t *gray, uint16_t *depth)
 
     last_pose = curr_pose;
     stat_resdl = err;
+
+    end_tim = htim2.Instance->CNT;
+    stat_others_time = end_tim - start_tim - retrack_tim;
   }
 }
 
@@ -219,12 +240,13 @@ void get_current_pose_tum_str(char *outbuf, int bufsize)
 
 void get_stat_str(char *outbuf, int bufsize)
 {
-  snprintf(outbuf, bufsize, "%d, %9f, %d, %d, %d, %d\n",
+  snprintf(outbuf, bufsize, "%d, %9f, %d, %d, %d, %d, %d\n",
     stat_nr_features,
     stat_resdl, 
     stat_it1,
     stat_it2,
     stat_ed_time,
-    stat_feat_time
+    stat_feat_time,
+    stat_others_time
   );
 }

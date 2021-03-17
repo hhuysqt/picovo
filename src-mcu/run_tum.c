@@ -36,7 +36,6 @@ static uint16_t * const pdepth = (uint16_t*)(&_inputbuf[IMG_WIDTH*IMG_HEIGHT]);
 // Store the datasets to run in datasets.txt in the root directory of SD card, 
 // one dataset folder per line.
 static char dataset_name_buf[512];
-#define MAX_NR_DATASETS 10
 static char *dataset_names[MAX_NR_DATASETS];
 static int nr_datasets;
 
@@ -112,7 +111,7 @@ void run_dataset(void)
     }
 
     UINT br;
-    int datacnt = 0;
+    int datacnt = 0, lastprlen = 0;
     while (!f_eof(&asc_file)) {
       char *etimestamp = &buf[0];
       int nr_space = 0;
@@ -157,7 +156,7 @@ void run_dataset(void)
       char buf2[16];
       snprintf(buf2, sizeof(buf2), "%d: ", datacnt++);
       get_current_pose_tum_str(etimestamp, PRBUFSIZE - (etimestamp-buf));
-      myputs(buf2), myputs(buf);
+      // myputs(buf2), myputs(buf);
       if (f_write(&pose_file, buf, strlen(buf), &br) != FR_OK) {
         myputs("write pose failed...\n");
         while(1);
@@ -165,17 +164,27 @@ void run_dataset(void)
       sprintf(buf, "stat: %u, %u, ", (unsigned)(start_tim-start_rd_tim), (unsigned)(end_tim-start_tim));
       int len1 = strlen(buf);
       get_stat_str(&buf[len1], PRBUFSIZE-len1);
-      myputs(buf);
       char *statbuf = &buf[6];
       if (f_write(&stat_file, statbuf, strlen(statbuf), &br) != FR_OK) {
         myputs("write stat failed...\n");
         while(1);
       }
+      int prlen = strlen(buf);
+      if (prlen < lastprlen) {
+        memset(&buf[prlen-1], ' ', lastprlen - prlen);
+        buf[lastprlen-1] = '\r';
+        buf[lastprlen] = 0;
+      } else {
+        buf[prlen-1] = '\r';
+        buf[prlen] = 0;
+      }
+      lastprlen = prlen;
+      myputs(buf);
     }
     f_close(&asc_file);
     f_close(&img_file);
     f_close(&stat_file);
     f_close(&pose_file);
   }
-  myputs("Done\n");
+  myputs("\nDone\n");
 }

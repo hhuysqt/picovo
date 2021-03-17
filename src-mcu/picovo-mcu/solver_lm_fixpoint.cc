@@ -21,6 +21,10 @@
 #include "solver_lm_fixpoint.h"
 #include "sophus/se3.hpp"
 
+#ifndef USE_COMPRESSED_FEATURE
+#error "Fixed-point LM must use compressed feature structure."
+#endif
+
 // private:
 
 // Look-Up-Table for residual: huber*sqrt(uint8_t)
@@ -39,9 +43,10 @@ int stat_iterations;
  * @fn _calc_update_lm_fp
  * @brief Calculate Hessian & b using fixed point arithmetic.
  * @param ref_dt DT of the reference frame.
- * @param cur_feat Selected features of the current frame.
- * @param nr_proj Input: Number of points in cur_pcl.
+ * @param pfeat Selected features of the current frame.
+ * @param nr_proj Input: Number of points in pfeat.
  *                Output: Number of valid projections.
+ * @param step Interval for sparse-to-dense calculation.
  * @param R Input: Current rotation matrix.
  * @param T Input: Current translation vector.
  * @param H Output: Hessian matrix, Hx=b
@@ -127,7 +132,6 @@ static float _calc_update_lm_fp(
     }
 
     int32_t residual = lut_residual[sqr_dist];  // 4+16 bits
-    int32_t invres = lut_invres[sqr_dist];  // 7+9 bits
     // grad: 9+7 bits
     int16_t Iu_i = (lut_iu[*(pcurdist-1)] - lut_iu[*(pcurdist+1)]);
     int16_t Iv_i = (lut_iv[*(pcurdist-IMG_WIDTH)] - lut_iv[*(pcurdist+IMG_WIDTH)]);
@@ -150,9 +154,10 @@ static float _calc_update_lm_fp(
 
     // Next, retian Q9.1 J/residual
     int16_t Jinvres[6];
-    Jinvres[0] = (J[0] * invres) >> 10, Jinvres[1] = (J[1] * invres) >> 10,
-    Jinvres[2] = (J[2] * invres) >> 10, Jinvres[3] = (J[3] * invres) >> 10,
-    Jinvres[4] = (J[4] * invres) >> 10, Jinvres[5] = (J[5] * invres) >> 10;
+    int32_t invres = lut_invres[sqr_dist];  // 7+15 bits
+    Jinvres[0] = (J[0] * invres) >> 16, Jinvres[1] = (J[1] * invres) >> 16,
+    Jinvres[2] = (J[2] * invres) >> 16, Jinvres[3] = (J[3] * invres) >> 16,
+    Jinvres[4] = (J[4] * invres) >> 16, Jinvres[5] = (J[5] * invres) >> 16;
 
     // Finally, obtain Q29.3 Hessian parts: J*J^T / residual
     H00 += (J[0] * Jinvres[0]);
@@ -225,7 +230,7 @@ void init_solver(void)
   for (int i = 0; i < 256; i++) {
     double d = SOLVER_HUBER * sqrt(i);
     lut_residual[i] = d * (1L << 16);       // 4+16
-    lut_invres[i] = (1L << 9) / d;          // 7+9
+    lut_invres[i] = (1L << 15) / d;         // 7+15
     lut_iu[i] = 0.3 * CAM_FX * d * (1L << 7);   // 12+7
     lut_iv[i] = 0.3 * CAM_FY * d * (1L << 7);   // 12+7
   }
@@ -251,7 +256,13 @@ float solver_track_frame(
   float last_min_resdl;
   int nr_tracked = nr_feat;
   last_min_resdl = _calc_update_lm_fp(ref_dt, cur_feat, 
-    nr_tracked, 4, R, T, H, b);
+    nr_tracked, 
+#ifdef SPARSE_TO_DENSE_TRACKING
+    4,
+#else
+    1, 
+#endif
+    R, T, H, b);
 
   if (lamda > 3) lamda = 3.2;
 
@@ -267,8 +278,13 @@ float solver_track_frame(
     Sophus::SE3f new_ref2cur = Sophus::SE3f::exp(inc) * ref2cur;
     float cur_resdl;
 
+#ifdef SPARSE_TO_DENSE_TRACKING
     int featoffset = its < 4 ? its : its < 6 ? its-4 : 0;
     int stepsize = its < 4 ? 4 : its < 6 ? 2 : 1;
+#else
+    int featoffset = 0;
+    int stepsize = 1;
+#endif
     nr_tracked = nr_feat & 0xfffffffc;
     cur_resdl = _calc_update_lm_fp(ref_dt, cur_feat + featoffset, nr_tracked, stepsize,
       new_ref2cur.rotationMatrix(), new_ref2cur.translation(),

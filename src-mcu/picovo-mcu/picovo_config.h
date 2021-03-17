@@ -27,7 +27,7 @@
 #define IMG_SIZE    (IMG_WIDTH*IMG_HEIGHT)
 
 // edge: gradient threshold
-#define EDGE_GRAD_THRESHOLD 7
+#define EDGE_GRAD_THRESHOLD 6
 // feature: depth threshold
 #define DEPTH_MIN 625
 #define DEPTH_MAX 55000
@@ -43,5 +43,16 @@
 
 // limited number of feature points
 #define MAX_NR_FEATURE 6000
+
+// Maximum number of dataset to be processed. Since we set a limit of
+// only 2 simultaneous open files in FATFS, we have to buffer the names
+// of the dataset folder.
+#define MAX_NR_DATASETS 32
+
+// use compressed feature structure
+#define USE_COMPRESSED_FEATURE
+
+// use sparse-to-dense tracking
+#define SPARSE_TO_DENSE_TRACKING
 
 #endif

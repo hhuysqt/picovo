@@ -39,9 +39,10 @@ int stat_iterations;
  * @fn _calc_update_lm_fp
  * @brief Calculate Hessian & b using fixed point arithmetic.
  * @param ref_dt DT of the reference frame.
- * @param cur_feat Selected features of the current frame.
- * @param nr_proj Input: Number of points in cur_pcl.
+ * @param pfeat Selected features of the current frame.
+ * @param nr_proj Input: Number of points in pfeat.
  *                Output: Number of valid projections.
+ * @param step Interval for sparse-to-dense calculation.
  * @param R Input: Current rotation matrix.
  * @param T Input: Current translation vector.
  * @param H Output: Hessian matrix, Hx=b
@@ -50,7 +51,11 @@ int stat_iterations;
  */
 static float _calc_update_lm_fp(
   const uint8_t *ref_dt, 
+#ifdef USE_COMPRESSED_FEATURE
   const struct feature_s *pfeat, 
+#else
+  const struct coo_3d *pfeat,
+#endif
   int &nr_proj,
   int step,
   const Eigen::Matrix3f &R, 
@@ -88,12 +93,21 @@ static float _calc_update_lm_fp(
 
   for (int i = 0; i < nr_proj; i += step) {
     auto feature = pfeat[i];
+#ifdef USE_COMPRESSED_FEATURE
     float ucxfx = feature.u_cx_fx / 4096.0; // Q4.12
     float vcyfy = feature.v_cy_fy / 4096.0; // Q4.12
     float zinv =  feature.zinv / 4096.0;    // Q4.12
     float res0 = ri00 * ucxfx + ri01 * vcyfy + ri02 + ti0 * zinv;
     float res1 = ri10 * ucxfx + ri11 * vcyfy + ri12 + ti1 * zinv;
     float res2 = ri20 * ucxfx + ri21 * vcyfy + ri22 + ti2 * zinv;
+#else
+    float x = feature.x;
+    float y = feature.y;
+    float z = feature.z;
+    float res0 = ri00 * x + ri01 * y + ri02 * z + ti0;
+    float res1 = ri10 * x + ri11 * y + ri12 * z + ti1;
+    float res2 = ri20 * x + ri21 * y + ri22 * z + ti2;
+#endif
     float inv_res2 = 1.0 / res2;
     float x_z = res0 * inv_res2, y_z = res1 * inv_res2;
     float u_f = CAM_FX * x_z + CAM_CX;
@@ -122,7 +136,11 @@ static float _calc_update_lm_fp(
     // grad
     float Iu = (lut_iu[*(pcurdist-1)] - lut_iu[*(pcurdist+1)]);
     float Iv = (lut_iv[*(pcurdist-IMG_WIDTH)] - lut_iv[*(pcurdist+IMG_WIDTH)]);
+#ifdef USE_COMPRESSED_FEATURE
     float z_inv = inv_res2 * zinv;
+#else
+    float z_inv = inv_res2;
+#endif
 
     // Optimized Jacobian calculation. Note that the Huber, fx and fy have
     // been multiplied in Iu & Iv before.
@@ -239,8 +257,19 @@ float solver_track_frame(
 
   float last_min_resdl;
   int nr_tracked = nr_feat;
-  last_min_resdl = _calc_update_lm_fp(ref_dt, cur_feat, 
-    nr_tracked, 4, R, T, H, b);
+  last_min_resdl = _calc_update_lm_fp(ref_dt, 
+#ifdef USE_COMPRESSED_FEATURE
+    cur_feat, 
+#else
+    (coo_3d*)cur_feat, 
+#endif
+    nr_tracked, 
+#ifdef SPARSE_TO_DENSE_TRACKING
+    4,
+#else
+    1, 
+#endif
+    R, T, H, b);
 
   if (lamda > 3) lamda = 3.2;
 
@@ -256,10 +285,21 @@ float solver_track_frame(
     Sophus::SE3f new_ref2cur = Sophus::SE3f::exp(inc) * ref2cur;
     float cur_resdl;
 
+#ifdef SPARSE_TO_DENSE_TRACKING
     int featoffset = its < 4 ? its : its < 6 ? its-4 : 0;
     int stepsize = its < 4 ? 4 : its < 6 ? 2 : 1;
+#else
+    int featoffset = 0;
+    int stepsize = 1;
+#endif
     nr_tracked = nr_feat & 0xfffffffc;
-    cur_resdl = _calc_update_lm_fp(ref_dt, cur_feat + featoffset, nr_tracked, stepsize,
+    cur_resdl = _calc_update_lm_fp(ref_dt, 
+#ifdef USE_COMPRESSED_FEATURE
+      cur_feat + featoffset, 
+#else
+      (coo_3d*)cur_feat + featoffset, 
+#endif
+      nr_tracked, stepsize,
       new_ref2cur.rotationMatrix(), new_ref2cur.translation(),
       H, b);
 
