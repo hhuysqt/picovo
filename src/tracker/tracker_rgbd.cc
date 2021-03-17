@@ -470,7 +470,7 @@ void tracker_rgbd::start(picovo_config &config)
         next_gt_pose = makeup_matrix4f(Qt, Tt);
       }
 
-      bool is_first = true;
+      bool is_first = true, is_gt_first = true;
       double starttime = 0;
       curr_state = TRACK_IDLE;
 #ifdef USE_PANGOLIN
@@ -500,7 +500,8 @@ void tracker_rgbd::start(picovo_config &config)
           }
           if (last_gt_time < curtime) {
             // Hereby last_gt_time < curtime <= next_gt_time
-            if (is_first) {
+            if (is_gt_first) {
+              is_gt_first = false;
               // a rough alignment to our estimator...
               inv_ori_gt_pose = last_gt_pose.inverse();
               my_viewer->add_groundtruth(Eigen::Matrix4f::Identity());
