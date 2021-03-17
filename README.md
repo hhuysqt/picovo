@@ -194,8 +194,11 @@ To parse a batch of csv files, we may use the `for` loop, and then calculate the
 for statfiles in `ls *.csv`
  do awk -f /....../src-mcu/scripts/parse_mcu_stat.awk $statfiles | tail -n 1
 done > summary.txt
-awk 'BEGIN{a1=0; a2=0; a3=0; a4=0; a5=0; a6=0; a7=0; a8=0}{a1+=$2; a2+=$3; a3+=$4; a4+=$5; a5+=$6; a6+=$7; a7+=$8; a8+=$9}END{printf "%d %d %d %d %d %d %.3f %.5f\n", a1/NR, a2/NR, a3/NR, a4/NR, a5/NR, a6/NR, a7/NR, a8/NR}' summary.txt
-(base)
+awk 'BEGIN{a1=0; a2=0; a3=0; a4=0; a5=0; a6=0; a7=0; a8=0}\
+{a1+=$2; a2+=$3; a3+=$4; a4+=$5; a5+=$6; a6+=$7; a7+=$8; a8+=$9}\
+END{printf "%d %d %d %d %d %d %.3f %.5f\n", \
+a1/NR, a2/NR, a3/NR, a4/NR, a5/NR, a6/NR, a7/NR, a8/NR}' \
+summary.txt
 ```
 
 The processing speed may be slow due to file read and write. In my experience the SDIO CLK@12MHz would take around 95ms to read 230KB (or 2.4MB/s), **and this throttles the overall tracking speed to around 6.5fps!** Nevertheless, the "real" tracking time measured in the statistic file covers both image preprocessing and tracking, and we deliberately add compiler barriers to avoid being optimized out:
